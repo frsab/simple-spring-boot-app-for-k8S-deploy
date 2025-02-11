@@ -1,0 +1,40 @@
+stages:
+  - build
+  - test
+  - docker
+  - deploy
+
+variables:
+  REGISTRY_IMAGE: "https://gitlab.optiplex3060:9988/k8s-workshops/simple-spring-boot-app-for-k8s-deploy"
+  KUBE_NAMESPACE: "demo-namespace"
+
+before_script:
+  - export VERSION=$(git rev-parse --short HEAD) # Récupère le hash du dernier commit (HEAD).,
+                                                 #--short → Tronque le hash en version courte (ex: a1b2c3d).
+                                                 # export VERSION=... → Stocke ce hash dans la variable VERSION.
+
+build:
+  stage: build
+  script:
+    - mvn clean package -DskipTests
+
+test:
+  stage: test
+  script:
+    - mvn test
+
+docker:
+  stage: docker
+  script:
+    - docker build -t $REGISTRY_IMAGE:$VERSION .
+    - docker push $REGISTRY_IMAGE:$VERSION
+
+deploy:
+  stage: deploy
+  environment: production
+  script:
+    - kubectl apply -f kubernetes/deployment.yaml
+    - kubectl apply -f kubernetes/service.yaml
+    - kubectl apply -f kubernetes/ingress.yaml
+  only:
+    - main
